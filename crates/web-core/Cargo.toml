@@ -1,0 +1,10 @@
+[package]
+name = "photos-web-core"
+version = "0.1.0"
+authors = ["Graham Rushton <graham.rushton@argondesign.com>"]
+edition = "2018"
+
+[dependencies]
+chrono = { version = "0.4.19", features = ["serde"] }
+serde = { version = "1.0.118", features = ["derive"] }
+serde-tuple-vec-map = "1.0.0"

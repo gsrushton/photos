@@ -1,0 +1,3 @@
+[submodule "third-party/dlib-face-recognition"]
+	path = third-party/dlib-face-recognition
+	url = https://github.com/gsrushton/dlib-face-recognition.git

@@ -1,0 +1,11 @@
+[workspace]
+members = [
+  "crates/cli-client",
+  "crates/web-client",
+  "crates/web-core",
+  "crates/web-server",
+  "crates/web-server-derive"
+]
+
+[profile.release]
+lto = true

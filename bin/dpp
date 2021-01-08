@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+
+def preprocess_dependency_file(prefix, input_path, output_path):
+  prefix = prefix.replace("\\", "/")
+  body = ""
+
+  def strip_prefix(path, prefix):
+    path = path.replace("\\", "/")
+    if path.startswith(prefix + "/"):
+      return path[len(prefix) + 1:]
+    else:
+      return path
+
+  with open(input_path, "r") as input_file:
+    all_prereqs = set()
+
+    for line in input_file:
+      split_pos = line.find(":", 2)
+
+      target_str, prereq_str = line[:split_pos], line[split_pos+1:]
+
+      targets = [strip_prefix(target, prefix)
+                    for target in target_str.split()]
+
+      prereqs = [strip_prefix(prereq, prefix)
+                    for prereq in prereq_str.split()]
+
+      body += "\\\n".join(targets)
+      body += ": "
+      body += " \\\n{}".format(" " * (len(targets[-1]) + 2)).join(prereqs)
+      body += "\n\n"
+
+      all_prereqs.update(prereqs)
+
+    for prereq in all_prereqs:
+      body += "{}:\n\n".format(prereq)
+
+  with open(output_path, "w") as output_file:
+    print(body, file=output_file, end="")
+
+def main():
+  parser = argparse.ArgumentParser("Pre-process Dependency Files")
+  parser.add_argument("prefix")
+  parser.add_argument("input")
+  parser.add_argument("output")
+
+  args = parser.parse_args()
+
+  preprocess_dependency_file(args.prefix, args.input, args.output)
+
+if __name__ == "__main__":
+  main()

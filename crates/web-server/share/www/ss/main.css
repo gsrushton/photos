@@ -1,0 +1,119 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #F8F5F1;
+    color: #050505;
+}
+
+div#root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+ul#nav-bar {
+    margin: 0;
+    padding-left: 1.5em;
+    padding-right: 1.5em;
+    display: flex;
+    list-style-type: none;
+    background-color: #313638;
+}
+
+ul#nav-bar li {
+    color: #F8F5F1;
+    padding-left: 1.5em;
+    padding-right: 1.5em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    cursor: pointer;
+}
+
+ul#nav-bar li:hover {
+    color: #FFFFFF;
+}
+
+ul#nav-bar li.active {
+    font-weight: bold;
+    border-bottom: 2px solid #cc5500;
+}
+
+ul#people {
+    margin: 0;
+    padding: 1em;
+    display: flex;
+    list-style-type: none;
+}
+
+ul#people li {
+    margin: 1em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+ul#people li:hover {
+    color: #33658a;
+}
+
+div#person div#header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+div#person div#header div.form {
+    display: flex;
+    flex-direction: column;
+}
+
+div#person div#header div.field-row {
+    display: flex;
+    flex-direction: row;
+}
+
+div#person label {
+    display: flex;
+    flex-direction: column;
+}
+
+div#person label span {
+    font-size: small;
+    color: #676767;
+}
+
+img.avatar {
+    margin: 0.5em;
+    border-radius: 100%;
+}
+
+input.title {
+    background: transparent;
+    font-weight: bold;
+    font-size: large;
+    border: none;
+}
+
+/*
+--burnt-orange: #cc5500
+--rich-black-fogra-39: #050505
+--queen-blue: #33658a
+--star-command-blue: #067bc2
+--linen: #efe6dd
+*/
+
+/*
+--oxford-blue: #0a122a
+--persian-green: #17a398
+--persian-orange: #cb904d
+--tuscan-red: #804e49
+--mint-cream: #f8fff4
+--egg-shell: #ede7d9
+--bone: #ded3ba
+--black-chocolate: #1c170d
+*/
