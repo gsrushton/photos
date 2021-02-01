@@ -14,12 +14,6 @@ $(ROOT_BUILD_DIR):
 
 include tools/make/cargo.mk
 
-debug: $(call build-cargo-bin,photosd,debug) \
-       $(call build-cargo-bin,photos,debug)
-
-#release: $(call build-cargo-project,photosd,release) \
-#         $(call build-cargo-project,photos,release)
-
 define dirname
 $(patsubst %/,%,$(dir $1))
 endef
@@ -95,4 +89,3 @@ $(DOCKER_DIR)/photos-build: $(DKR_PHOTOS_DIR)/Dockerfile \
 $(DOCKER_DIR)/photos-publish: $(DOCKER_DIR)/photos-build
 	docker tag photos:latest odin:5000/photos:latest
 	docker push odin:5000/photos:latest
-

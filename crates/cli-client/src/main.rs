@@ -124,11 +124,34 @@ struct Client {
     file_paths: Vec<Result<std::path::PathBuf, ResolvedPathError>>,
     responses: PendingReponses,
     uri: http::Uri,
+    progress_bar: indicatif::ProgressBar,
 }
 
 impl Client {
     pub fn new(host: &str, root: std::path::PathBuf) -> Result<Self, NewClientError> {
         use std::convert::TryFrom;
+
+        let file_paths: Vec<_> = ResolvedPath::try_from(root)
+            .map_err(|err| NewClientError::InvalidPath(err))?
+            .gather_files()
+            .into_iter()
+            .filter(|file_path_result| match file_path_result {
+                Ok(file_path) => {
+                    let extension = file_path
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .map(|extension| extension.to_lowercase());
+
+                    extension.is_some() && supports_extension(extension.as_ref().unwrap())
+                }
+                Err(_) => true,
+            })
+            .collect();
+
+        let progress_bar = indicatif::ProgressBar::new(file_paths.len() as u64);
+        progress_bar.set_style(indicatif::ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})")
+        .progress_chars("#>-"));
 
         Ok(Self {
             http_client: hyper::client::Client::new(),
@@ -142,22 +165,8 @@ impl Client {
                 .path_and_query("/api/photos")
                 .build()
                 .unwrap(),
-            file_paths: ResolvedPath::try_from(root)
-                .map_err(|err| NewClientError::InvalidPath(err))?
-                .gather_files()
-                .into_iter()
-                .filter(|file_path_result| match file_path_result {
-                    Ok(file_path) => {
-                        let extension = file_path
-                            .extension()
-                            .and_then(|extension| extension.to_str())
-                            .map(|extension| extension.to_lowercase());
-
-                        extension.is_some() && supports_extension(extension.as_ref().unwrap())
-                    }
-                    Err(_) => true,
-                })
-                .collect(),
+            progress_bar,
+            file_paths,
         })
     }
 
@@ -182,6 +191,8 @@ impl Client {
         self.enqueue_requests().await;
 
         while let Some(response_result) = self.responses.next().await {
+            self.progress_bar.inc(1);
+
             match response_result {
                 Ok(mut response) => {
                     let status = response.status();
@@ -213,6 +224,7 @@ impl Client {
             let file_path = match self.file_paths.pop().unwrap() {
                 Ok(file_path) => file_path,
                 Err(err) => {
+                    self.progress_bar.inc(1);
                     Self::log_error(&err);
                     continue;
                 }
@@ -221,6 +233,7 @@ impl Client {
             let request = match Self::make_request(self.uri.clone(), file_path).await {
                 Ok(request) => request,
                 Err(err) => {
+                    self.progress_bar.inc(1);
                     Self::log_error(&err);
                     continue;
                 }

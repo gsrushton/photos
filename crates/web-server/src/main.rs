@@ -112,7 +112,10 @@ struct CliOptions {
     photo_file_path: std::path::PathBuf,
     #[structopt(long, default_value = "/var/lib/photos/thumbs")]
     thumb_file_path: std::path::PathBuf,
-    #[structopt(long, default_value = "/usr/local/share/photos/mmod_human_face_detector.dat")]
+    #[structopt(
+        long,
+        default_value = "/usr/local/share/photos/mmod_human_face_detector.dat"
+    )]
     face_landmark_predictor_model_file_path: std::path::PathBuf,
     #[structopt(
         long,
