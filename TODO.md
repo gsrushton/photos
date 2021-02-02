@@ -1,4 +1,3 @@
-* Make DB inserts + last_row_id lookup concurrency safe
 * Add person date of birth
   * Needs a front-end
 * Have appearance image generation take a size parameter
