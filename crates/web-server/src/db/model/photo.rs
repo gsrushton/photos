@@ -112,32 +112,33 @@ impl Photo {
         db.run_query(move |db_connection| {
             let datetime = ifnull(photos::original_datetime, photos::upload_datetime);
 
-            let query = people.into_iter().fold(
-                photos::table
-                    .left_join(appearances::table)
-                    .select((
-                        photos::id,
-                        (
-                            photos::digest,
-                            photos::file_name,
-                            photos::image_width,
-                            photos::image_height,
-                            photos::thumb_width,
-                            photos::thumb_height,
-                            photos::original_datetime,
-                            photos::upload_datetime,
-                        ),
-                    ))
-                    .distinct()
-                    .filter(datetime.ge(date.and_hms(0, 0, 0)))
-                    .filter(datetime.lt(date.succ().and_hms(0, 0, 0)))
-                    .order_by(datetime)
-                    .then_order_by(photos::id)
-                    .into_boxed(),
-                |query, person| query.filter(appearances::person.eq(person)),
-            );
-
-            query.load::<(i32, Self)>(&db_connection)
+            people
+                .into_iter()
+                .fold(
+                    photos::table
+                        .left_join(appearances::table)
+                        .select((
+                            photos::id,
+                            (
+                                photos::digest,
+                                photos::file_name,
+                                photos::image_width,
+                                photos::image_height,
+                                photos::thumb_width,
+                                photos::thumb_height,
+                                photos::original_datetime,
+                                photos::upload_datetime,
+                            ),
+                        ))
+                        .distinct()
+                        .filter(datetime.ge(date.and_hms(0, 0, 0)))
+                        .filter(datetime.lt(date.succ().and_hms(0, 0, 0)))
+                        .order_by(datetime)
+                        .then_order_by(photos::id)
+                        .into_boxed(),
+                    |query, person| query.filter(appearances::person.eq(person)),
+                )
+                .load::<(i32, Self)>(&db_connection)
         })
         .await
     }
