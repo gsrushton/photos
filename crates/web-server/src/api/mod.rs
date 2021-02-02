@@ -2,6 +2,7 @@ mod get_appearance_avatar;
 mod get_people;
 mod get_person;
 mod get_person_avatar;
+mod get_photo;
 mod get_photo_appearances;
 mod get_photo_count_per_day;
 mod get_photos_for_day;
@@ -92,6 +93,7 @@ pub fn configure(cfg: &mut actix_web::web::ServiceConfig) {
         .service(get_person_avatar::endpoint)
         .service(get_people::endpoint)
         .service(get_person::endpoint)
+        .service(get_photo::endpoint)
         .service(get_photo_appearances::endpoint)
         .service(get_photo_count_per_day::endpoint)
         .service(get_photos_for_day::endpoint)
