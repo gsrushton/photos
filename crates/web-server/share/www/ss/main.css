@@ -47,6 +47,7 @@ ul#people {
     padding: 1em;
     display: flex;
     list-style-type: none;
+    flex-wrap: wrap;
 }
 
 ul#people li {
