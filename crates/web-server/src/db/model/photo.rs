@@ -104,6 +104,30 @@ impl Photo {
         })
     }
 
+    pub async fn fetch(
+        db: &crate::db::System,
+        photo_id: i32,
+    ) -> Result<Option<Self>, crate::db::QueryError> {
+        db.run_query(move |db_connection| {
+            use crate::db::schema::photos::dsl::*;
+            photos
+                .select((
+                    digest,
+                    file_name,
+                    image_width,
+                    image_height,
+                    thumb_width,
+                    thumb_height,
+                    original_datetime,
+                    upload_datetime,
+                ))
+                .filter(id.eq(photo_id))
+                .load::<Self>(&db_connection)
+        })
+        .await
+        .map(|mut photos| photos.pop())
+    }
+
     pub async fn fetch_all_for_day(
         db: &crate::db::System,
         date: chrono::NaiveDate,
