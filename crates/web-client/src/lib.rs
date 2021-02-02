@@ -84,7 +84,7 @@ type SharedState = std::rc::Rc<State>;
 
 #[derive(Clone)]
 pub enum Path {
-    Photos,
+    Photos(photos::Path),
     People(people::Path),
     NotFound(std::path::PathBuf),
 }
@@ -102,10 +102,16 @@ impl Path {
 
     pub fn starts_with(&self, prefix: &Self) -> bool {
         match (self, prefix) {
-            (Self::Photos, Self::Photos) => true,
+            (Self::Photos(a), Self::Photos(b)) => a.starts_with(b),
             (Self::People(a), Self::People(b)) => a.starts_with(b),
             _ => false,
         }
+    }
+}
+
+impl From<photos::Path> for Path {
+    fn from(sub_path: photos::Path) -> Self {
+        Self::Photos(sub_path)
     }
 }
 
@@ -129,10 +135,12 @@ impl<'a> std::convert::TryFrom<std::path::Components<'a>> for Path {
     fn try_from(mut components: std::path::Components<'a>) -> Result<Self, Self::Error> {
         use std::path::Component;
         match components.next() {
-            None => Ok(Path::Photos),
-            Some(Component::Normal(c)) if c == "photos" => Ok(Path::Photos),
+            None => Ok(Path::Photos(photos::Path::Root)),
+            Some(Component::Normal(c)) if c == "photos" => {
+                Ok(Path::from(photos::Path::try_from(components)?))
+            }
             Some(Component::Normal(c)) if c == "people" => {
-                Ok(Path::People(people::Path::try_from(components)?))
+                Ok(Path::from(people::Path::try_from(components)?))
             }
             _ => Err(FromPathError::InvalidPath),
         }
@@ -142,7 +150,7 @@ impl<'a> std::convert::TryFrom<std::path::Components<'a>> for Path {
 impl From<Path> for CowPath {
     fn from(path: Path) -> Self {
         match path {
-            Path::Photos => CowPath::from("photos"),
+            Path::Photos(sub_path) => CowPath::from("photos").join(CowPath::from(sub_path)),
             Path::People(sub_path) => CowPath::from("people").join(CowPath::from(sub_path)),
             Path::NotFound(path) => CowPath::from(path),
         }
@@ -167,7 +175,7 @@ fn nav_bar(state: &State) -> dominator::Dom {
     html!("ul", {
         .attribute("id", "nav-bar")
         .children(&mut [
-            make_link("Photos", Path::Photos),
+            make_link("Photos", Path::Photos(photos::Path::Root)),
             make_link("People", Path::People(people::Path::Root))
         ])
     })
@@ -186,7 +194,7 @@ fn root(state: SharedState) -> dominator::Dom {
             vec![
                 nav_bar(state.as_ref()),
                 match path {
-                    Path::Photos => photos::root(state.clone()),
+                    Path::Photos(sub_path) => photos::root(state.clone(), &sub_path),
                     Path::People(sub_path) => people::root(state.clone(), &sub_path),
                     Path::NotFound(_) => path_not_found(),
                 },
