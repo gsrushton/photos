@@ -59,11 +59,14 @@ $(DKR_PHOTOSD_SCRIPT_DIR)/%: $(CARGO_WASM_RELEASE_DIR)/% | $(DKR_PHOTOSD_SCRIPT_
 
 $(CARGO_WASM_RELEASE_DIR)/snippets: $(WEB_CLIENT_TARGETS)
 
-$(DOCKER_DIR)/photosd-build: $(DKR_PHOTOSD_DIR)/Dockerfile \
-                             $(DKR_PHOTOSD_DIR)/photosd \
-                             $(call copy-dir,crates/web-server/share,$(DKR_PHOTOSD_DIR)/share) \
-                             $(DKR_PHOTOSD_SCRIPT_DIR)/snippets \
-                             $(subst $(CARGO_WASM_RELEASE_DIR),$(DKR_PHOTOSD_SCRIPT_DIR),$(WEB_CLIENT_TARGETS))
+$(DOCKER_DIR)/photosd-prepare: $(DKR_PHOTOSD_DIR)/Dockerfile \
+                               $(DKR_PHOTOSD_DIR)/photosd \
+                               $(call copy-dir,crates/web-server/share,$(DKR_PHOTOSD_DIR)/share) \
+                               $(DKR_PHOTOSD_SCRIPT_DIR)/snippets \
+                               $(subst $(CARGO_WASM_RELEASE_DIR),$(DKR_PHOTOSD_SCRIPT_DIR),$(WEB_CLIENT_TARGETS))
+	@touch $@
+
+$(DOCKER_DIR)/photosd-build: $(DOCKER_DIR)/photosd-prepare
 	docker build -t photosd:latest $(DKR_PHOTOSD_DIR)
 	@touch $@
 
