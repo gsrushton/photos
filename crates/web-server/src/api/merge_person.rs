@@ -13,5 +13,5 @@ pub async fn endpoint(
 ) -> Result<actix_web::HttpResponse, Error> {
     Ok(crate::db::model::Person::merge(&db, dst_id, src_id)
         .await
-        .map(|_| HttpResponse::Ok().finish())?)
+        .map(|_| HttpResponse::Ok().json(()))?)
 }
