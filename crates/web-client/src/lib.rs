@@ -56,13 +56,16 @@ where
 pub struct State {
     origin: url::Url,
     path: futures_signals::signal::Mutable<Path>,
+    root_dimensions: futures_signals::signal::Mutable<(u32, u32)>,
 }
 
 impl State {
-    pub fn new(origin: url::Url, path: Path) -> Self {
+    pub fn new(origin: url::Url, path: Path, root_width: u32, root_height: u32) -> Self {
+        use futures_signals::signal::Mutable;
         Self {
             origin,
-            path: futures_signals::signal::Mutable::new(path),
+            path: Mutable::new(path),
+            root_dimensions: Mutable::new((root_width, root_height)),
         }
     }
 
@@ -295,10 +298,27 @@ pub fn main() {
 
     let window = web_sys::window().unwrap();
 
+    let root_element = window.document().unwrap().document_element().unwrap();
+
     let state = std::rc::Rc::new(State::new(
         url::Url::parse(&window.location().origin().unwrap()).unwrap(),
         crackers(),
+        root_element.client_width() as u32,
+        root_element.client_height() as u32,
     ));
+
+    std::mem::forget(
+        crate::add_event_listener(window.clone(), String::from("resize"), {
+            let state = state.clone();
+            move || {
+                state.root_dimensions.set((
+                    root_element.client_width() as u32,
+                    root_element.client_height() as u32,
+                ))
+            }
+        })
+        .unwrap(),
+    );
 
     cake(state.clone());
 
