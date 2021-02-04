@@ -1,5 +1,5 @@
 use crate::CowPath;
-use dominator::{html, Dom};
+use dominator::{html, with_node, Dom};
 
 type Params = photos_web_core::PhotoQueryParams;
 type SharedParams = std::rc::Rc<Params>;
@@ -133,12 +133,39 @@ pub fn collection(state: super::SharedState, params: Params) -> Dom {
 }
 
 pub fn photo(state: super::SharedState, id: i32) -> Dom {
-    let render = move |photo: &photos_web_core::Photo| -> Dom {
-        html!("img", {
-            .attribute("src", &format!("/static/photos/{}", photo.file_name))
-            .attribute("width", &photo.image_width.to_string())
-            .attribute("height", &photo.image_height.to_string())
-        })
+    let render = {
+        let state = state.clone();
+        move |photo: &photos_web_core::Photo| -> Dom {
+            use futures_signals::signal::SignalExt;
+
+            let photo_width = photo.image_width as f32;
+            let photo_height = photo.image_height as f32;
+
+            html!("div", {
+                .class("photo")
+                .style("background-image", &format!("url(/static/photos/{})", photo.file_name))
+                .with_node!(element => {
+                    .style_signal("background-size", state.root_dimensions.signal().map(move |_| {
+                        element
+                            .parent_element()
+                            .map(|parent| {
+                                let parent_width = parent.client_width();
+                                let parent_height = parent.client_height();
+
+                                let horz_ratio = parent_width as f32 / photo_width;
+                                let vert_ratio = parent_height as f32 / photo_height;
+
+                                if horz_ratio <= vert_ratio {
+                                    format!("{}px {}px", parent_width, photo_height * horz_ratio)
+                                } else {
+                                    format!("{}px {}px", photo_width * vert_ratio, parent_height)
+                                }
+                            })
+                            .unwrap_or(String::from("0px 0px"))
+                    }))
+                })
+            })
+        }
     };
 
     async fn update(
