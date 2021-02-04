@@ -45,7 +45,7 @@ impl From<Path> for CowPath {
     }
 }
 
-fn avatar(id: i32) -> Dom {
+pub fn avatar(id: i32) -> Dom {
     html!("img", {
         .class("avatar")
         .attribute("src", &format!("/api/people/{}/avatar", id))

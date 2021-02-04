@@ -132,41 +132,62 @@ pub fn collection(state: super::SharedState, params: Params) -> Dom {
     super::cheese(update, render)
 }
 
-pub fn photo(state: super::SharedState, id: i32) -> Dom {
-    let render = {
-        let state = state.clone();
-        move |photo: &photos_web_core::Photo| -> Dom {
-            use futures_signals::signal::SignalExt;
-
-            let photo_width = photo.image_width as f32;
-            let photo_height = photo.image_height as f32;
-
-            html!("div", {
-                .class("photo")
-                .style("background-image", &format!("url(/static/photos/{})", photo.file_name))
-                .with_node!(element => {
-                    .style_signal("background-size", state.root_dimensions.signal().map(move |_| {
-                        element
-                            .parent_element()
-                            .map(|parent| {
-                                let parent_width = parent.client_width();
-                                let parent_height = parent.client_height();
-
-                                let horz_ratio = parent_width as f32 / photo_width;
-                                let vert_ratio = parent_height as f32 / photo_height;
-
-                                if horz_ratio <= vert_ratio {
-                                    format!("{}px {}px", parent_width, photo_height * horz_ratio)
-                                } else {
-                                    format!("{}px {}px", photo_width * vert_ratio, parent_height)
-                                }
-                            })
-                            .unwrap_or(String::from("0px 0px"))
-                    }))
-                })
-            })
-        }
+fn appearance_gallery(state: super::SharedState, id: i32) -> Dom {
+    let render = |appearances: &photos_web_core::Appearances| -> Dom {
+        html!("div", {
+            .class("appearance-gallery")
+            // TODO need to dedupe appearances
+            .children(appearances.iter().map(|(_, appearance)| {
+                crate::people::avatar(appearance.person)
+            }))
+        })
     };
+
+    async fn update(
+        state: super::SharedState,
+        id: i32,
+    ) -> Result<photos_web_core::Appearances, crate::api::Error> {
+        crate::api::get(state.url(&format!("/api/photos/{}/appearances", id))).await
+    }
+
+    crate::cheese(move || update(state.clone(), id), render)
+}
+
+pub fn photo(state: super::SharedState, id: i32) -> Dom {
+    fn render(state: super::SharedState, id: i32, photo: &photos_web_core::Photo) -> Dom {
+        use futures_signals::signal::SignalExt;
+
+        let photo_width = photo.image_width as f32;
+        let photo_height = photo.image_height as f32;
+
+        html!("div", {
+            .class("photo")
+            .style("background-image", &format!("url(/static/photos/{})", photo.file_name))
+            .children(&mut [
+                appearance_gallery(state.clone(), id)
+            ])
+            .with_node!(element => {
+                .style_signal("background-size", state.root_dimensions.signal().map(move |_| {
+                    element
+                        .parent_element()
+                        .map(|parent| {
+                            let parent_width = parent.client_width();
+                            let parent_height = parent.client_height();
+
+                            let horz_ratio = parent_width as f32 / photo_width;
+                            let vert_ratio = parent_height as f32 / photo_height;
+
+                            if horz_ratio <= vert_ratio {
+                                format!("{}px {}px", parent_width, photo_height * horz_ratio)
+                            } else {
+                                format!("{}px {}px", photo_width * vert_ratio, parent_height)
+                            }
+                        })
+                        .unwrap_or(String::from("0px 0px"))
+                }))
+            })
+        })
+    }
 
     async fn update(
         state: super::SharedState,
@@ -175,7 +196,13 @@ pub fn photo(state: super::SharedState, id: i32) -> Dom {
         crate::api::get(state.url(&format!("/api/photo/{}", id))).await
     }
 
-    super::cheese(move || update(state.clone(), id), render)
+    super::cheese(
+        {
+            let state = state.clone();
+            move || update(state.clone(), id)
+        },
+        move |photo| render(state.clone(), id, photo),
+    )
 }
 
 pub fn root(state: super::SharedState, sub_path: &Path) -> Dom {

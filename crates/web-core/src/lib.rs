@@ -130,7 +130,7 @@ pub struct Appearance {
     pub right: i32,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 #[serde(transparent)]
 pub struct Appearances(#[serde(with = "tuple_vec_map")] Vec<(i32, Appearance)>);
 
@@ -145,5 +145,11 @@ where
                 .map(|(id, appearance)| (id, appearance.into()))
                 .collect(),
         )
+    }
+}
+
+impl Appearances {
+    pub fn iter(&self) -> impl Iterator<Item = &(i32, Appearance)> {
+        self.0.iter()
     }
 }
