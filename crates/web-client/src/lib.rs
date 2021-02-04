@@ -262,32 +262,36 @@ pub fn crackers() -> Path {
     Path::try_from_path(std::path::Path::new(&window.location().pathname().unwrap())).unwrap()
 }
 
-pub fn cake(state: SharedState) {
-    let window = web_sys::window().unwrap();
+mod history {
+    pub fn bind(state: crate::SharedState) {
+        use futures_signals::signal::SignalExt;
 
-    std::mem::forget(
-        add_event_listener(window.clone(), String::from("popstate"), {
-            // TODO How not to call push_state?
-            // let state = state.clone();
-            move || {} //state.path.set(crackers())
-        })
-        .unwrap(),
-    );
+        let window = web_sys::window().unwrap();
 
-    let history = window.history().unwrap();
+        std::mem::forget(
+            crate::add_event_listener(window.clone(), String::from("popstate"), {
+                // TODO How not to call push_state?
+                // let state = state.clone();
+                move || {} //state.path.set(crackers())
+            })
+            .unwrap(),
+        );
 
-    wasm_bindgen_futures::spawn_local(state.path.signal_cloned().for_each(move |path| {
-        let url = state
-            .origin
-            .join(CowPath::from(path).as_ref().to_str().unwrap())
-            .unwrap();
+        let history = window.history().unwrap();
 
-        history
-            .push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url.as_ref()))
-            .unwrap();
+        wasm_bindgen_futures::spawn_local(state.path.signal_cloned().for_each(move |path| {
+            let url = state
+                .origin
+                .join(crate::CowPath::from(path).as_ref().to_str().unwrap())
+                .unwrap();
 
-        futures::future::ready(())
-    }));
+            history
+                .push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url.as_ref()))
+                .unwrap();
+
+            futures::future::ready(())
+        }));
+    }
 }
 
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
@@ -320,7 +324,7 @@ pub fn main() {
         .unwrap(),
     );
 
-    cake(state.clone());
+    history::bind(state.clone());
 
     dominator::append_dom(&dominator::body(), root(state));
 }
