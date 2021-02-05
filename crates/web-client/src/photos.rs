@@ -1,5 +1,5 @@
 use crate::CowPath;
-use dominator::{html, with_node, Dom};
+use dominator::{html, Dom};
 
 type Params = photos_web_core::PhotoQueryParams;
 type SharedParams = std::rc::Rc<Params>;
@@ -81,14 +81,17 @@ pub fn gallery(state: super::SharedState, params: SharedParams, date: chrono::Na
 
     let render = move |photos: &photos_web_core::Photos| {
         let state = state.clone();
-        html!("div", {
-            .children(&mut photos.iter().map(move |photo| {
-                gallery_image(state.clone(), photo)
-            }).collect::<Vec<_>>())
-        })
+        photos
+            .iter()
+            .map(move |photo| gallery_image(state.clone(), photo))
+            .collect::<Vec<_>>()
     };
 
-    super::cheese(update, render)
+    super::def::vec(
+        dominator::DomBuilder::new_html("ul").class("photo-gallery"),
+        update,
+        render,
+    )
 }
 
 pub fn collection_entry(
@@ -96,7 +99,8 @@ pub fn collection_entry(
     params: SharedParams,
     date: chrono::NaiveDate,
 ) -> Dom {
-    html!("div", {
+    html!("li", {
+        .class("photo-collection-entry")
         .children(&mut [
             html!("h1", {
                 .text(&format!("{}", date.format("%d %B %G")))
@@ -122,25 +126,32 @@ pub fn collection(state: super::SharedState, params: Params) -> Dom {
     };
 
     let render = move |count_per_day: &Vec<(chrono::NaiveDate, usize)>| {
-        html!("div", {
-            .children(&mut count_per_day.into_iter().map(|(date, _count)| {
-                collection_entry(state.clone(), params.clone(), *date)
-            }).collect::<Vec<_>>())
-        })
+        count_per_day
+            .into_iter()
+            .map(|(date, _count)| collection_entry(state.clone(), params.clone(), *date))
+            .collect::<Vec<_>>()
     };
 
-    super::cheese(update, render)
+    super::def::vec(
+        dominator::DomBuilder::new_html("ul").class("photo-collection"),
+        update,
+        render,
+    )
+}
+
+fn avatar(id: i32) -> Dom {
+    html!("img", {
+        .class("avatar")
+        .attribute("src", &format!("/api/people/{}/avatar", id))
+    })
 }
 
 fn appearance_gallery(state: super::SharedState, id: i32) -> Dom {
-    let render = |appearances: &photos_web_core::Appearances| -> Dom {
-        html!("div", {
-            .class("appearance-gallery")
-            // TODO need to dedupe appearances
-            .children(appearances.iter().map(|(_, appearance)| {
-                crate::people::avatar(appearance.person)
-            }))
-        })
+    let render = |appearances: &photos_web_core::Appearances| -> Vec<Dom> {
+        appearances
+            .iter()
+            .map(|(_, appearance)| avatar(appearance.person))
+            .collect()
     };
 
     async fn update(
@@ -150,43 +161,22 @@ fn appearance_gallery(state: super::SharedState, id: i32) -> Dom {
         crate::api::get(state.url(&format!("/api/photos/{}/appearances", id))).await
     }
 
-    crate::cheese(move || update(state.clone(), id), render)
+    crate::def::vec(
+        dominator::DomBuilder::new_html("div").class("appearance-gallery"),
+        move || update(state.clone(), id),
+        render,
+    )
 }
 
 pub fn photo(state: super::SharedState, id: i32) -> Dom {
-    fn render(state: super::SharedState, id: i32, photo: &photos_web_core::Photo) -> Dom {
-        use futures_signals::signal::SignalExt;
-
-        let photo_width = photo.image_width as f32;
-        let photo_height = photo.image_height as f32;
-
-        html!("div", {
-            .class("photo")
-            .style("background-image", &format!("url(/static/photos/{})", photo.file_name))
-            .children(&mut [
-                appearance_gallery(state.clone(), id)
-            ])
-            .with_node!(element => {
-                .style_signal("background-size", state.root_dimensions.signal().map(move |_| {
-                    element
-                        .parent_element()
-                        .map(|parent| {
-                            let parent_width = parent.client_width();
-                            let parent_height = parent.client_height();
-
-                            let horz_ratio = parent_width as f32 / photo_width;
-                            let vert_ratio = parent_height as f32 / photo_height;
-
-                            if horz_ratio <= vert_ratio {
-                                format!("{}px {}px", parent_width, photo_height * horz_ratio)
-                            } else {
-                                format!("{}px {}px", photo_width * vert_ratio, parent_height)
-                            }
-                        })
-                        .unwrap_or(String::from("0px 0px"))
-                }))
-            })
-        })
+    fn render(state: super::SharedState, id: i32, photo: &photos_web_core::Photo) -> Vec<Dom> {
+        vec![
+            html!("img", {
+                .class("photo")
+                .attribute("src", &format!("/static/photos/{}", photo.file_name))
+            }),
+            appearance_gallery(state, id),
+        ]
     }
 
     async fn update(
@@ -196,7 +186,8 @@ pub fn photo(state: super::SharedState, id: i32) -> Dom {
         crate::api::get(state.url(&format!("/api/photo/{}", id))).await
     }
 
-    super::cheese(
+    super::def::vec(
+        dominator::DomBuilder::new_html("div").class("photo"),
         {
             let state = state.clone();
             move || update(state.clone(), id)

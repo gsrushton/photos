@@ -15,10 +15,6 @@ div#root {
     flex-direction: column;
 }
 
-div#root > div {
-    flex-grow: 1;
-}
-
 ul#nav-bar {
     margin: 0;
     padding-left: 1.5em;
@@ -46,6 +42,32 @@ ul#nav-bar li.active {
     border-bottom: 2px solid #cc5500;
 }
 
+ul.photo-collection {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 1em;
+}
+
+ul.photo-collection > li {
+    list-style: none;
+    margin-bottom: 0.5em;
+}
+
+ul.photo-collection > li > h1 {
+    margin: 0.5em;
+    font-size: large;
+    font-weight: bold;
+}
+
+ul.photo-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+    margin: 0;
+    padding: 0;
+}
+
 ul#people {
     margin: 0;
     padding: 1em;
@@ -55,11 +77,14 @@ ul#people {
 }
 
 ul#people li {
-    margin: 1em;
     display: flex;
     flex-direction: column;
     align-items: center;
     cursor: pointer;
+}
+
+ul#people li img.avatar {
+    margin: 1em;
 }
 
 ul#people li:hover {
@@ -93,22 +118,33 @@ div#person label span {
 }
 
 div.photo {
-    background-repeat: no-repeat;
-    background-position: center;
+    position: relative;
+    width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
 }
 
-div.photo div.appearance-gallery {
+div.photo > img.photo {
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+div.photo > div.appearance-gallery {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin: 1em;
+}
+
+div.appearance-gallery {
     display: flex;
-    justify-content: flex-end;
-    padding: 0.5em;
+    flex-wrap: wrap;
+    gap: 1em;
 }
 
 img.avatar {
-    margin: 0.5em;
     border-radius: 100%;
     border: 0.5em solid #FFFFFF;
     box-shadow: 4px 4px 8px #666666;

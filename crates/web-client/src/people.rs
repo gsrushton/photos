@@ -129,12 +129,9 @@ fn people(state: crate::SharedState) -> Dom {
             use futures_signals::signal_vec::SignalVecExt;
             let state = state.clone();
             let merge_tx = merge_tx.clone();
-            html!("ul", {
-                .attribute("id", "people")
-                .children_signal_vec(people.signal_vec_cloned().map(move |(id, person)| {
-                    plate(state.clone(), id, &person, merge_tx.clone())
-                }))
-            })
+            people
+                .signal_vec_cloned()
+                .map(move |(id, person)| plate(state.clone(), id, &person, merge_tx.clone()))
         }
     };
 
@@ -180,7 +177,11 @@ fn people(state: crate::SharedState) -> Dom {
         Ok((people, merge_tx))
     };
 
-    crate::cheese(move || update(state.clone()), render)
+    crate::def::signal(
+        dominator::DomBuilder::new_html("ul").attribute("id", "people"),
+        move || update(state.clone()),
+        render,
+    )
 }
 
 fn person(state: crate::SharedState, id: i32) -> Dom {
@@ -276,15 +277,15 @@ fn person(state: crate::SharedState, id: i32) -> Dom {
                 ])
             });
 
-            html!("div", {
-                .attribute("id", "person")
-                .children(&mut [
-                    header,
-                    crate::photos::collection(state.clone(), photos_web_core::PhotoQueryParams {
-                        people: Some(vec![*id])
-                    })
-                ])
-            })
+            vec![
+                header,
+                crate::photos::collection(
+                    state.clone(),
+                    photos_web_core::PhotoQueryParams {
+                        people: Some(vec![*id]),
+                    },
+                ),
+            ]
         }
     };
 
@@ -323,7 +324,11 @@ fn person(state: crate::SharedState, id: i32) -> Dom {
         }
     };
 
-    crate::cheese(update, render)
+    crate::def::vec(
+        dominator::DomBuilder::new_html("div").attribute("id", "person"),
+        update,
+        render,
+    )
 }
 
 pub fn root(state: crate::SharedState, sub_path: &Path) -> Dom {

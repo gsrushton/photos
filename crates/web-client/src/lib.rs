@@ -3,55 +3,12 @@ use futures_signals::signal::SignalExt;
 
 mod api;
 mod cow_path;
+mod def;
 mod net;
 mod people;
 mod photos;
 
 use cow_path::CowPath;
-
-fn cheese<T, E, F, U, R>(mut u: U, mut r: R) -> dominator::Dom
-where
-    U: FnMut() -> F + 'static,
-    R: FnMut(&T) -> dominator::Dom + 'static,
-    F: futures::prelude::Future<Output = Result<T, E>>,
-    T: 'static,
-    E: std::error::Error + 'static,
-{
-    let result = futures_signals::signal::Mutable::new(None);
-
-    fn loading() -> dominator::Dom {
-        html!("span", {
-            .text("loading")
-        })
-    }
-
-    fn error(err: &(dyn std::error::Error + 'static)) -> dominator::Dom {
-        html!("div", {
-            .text(&format!("{}", err))
-            .children(&mut err.source().iter().map(|err| error(*err)).collect::<Vec<_>>())
-        })
-    }
-
-    let cake = html!("div", {
-        .child_signal(result.signal_ref(move |result| {
-            Some(match result {
-                None => loading(),
-                Some(Ok(value)) => r(value),
-                Some(Err(err)) => error(err),
-            })
-        }))
-    });
-
-    let update = || {
-        wasm_bindgen_futures::spawn_local(async move {
-            result.set(Some(u().await));
-        })
-    };
-
-    update();
-
-    cake
-}
 
 pub struct State {
     origin: url::Url,
