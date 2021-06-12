@@ -31,26 +31,20 @@ impl Orientation {
 
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
-pub struct NewMetaDataError(exif::Error);
+pub struct NewMetaDataError(rexif::ExifError);
 
-pub struct MetaData(exif::Exif);
+pub struct MetaData(rexif::ExifData);
 
 impl MetaData {
-    pub fn new<R>(mut r: R) -> Result<Self, NewMetaDataError>
-    where
-        R: std::io::BufRead + std::io::Seek,
-    {
+    pub fn new(contents: &[u8]) -> Result<Self, NewMetaDataError> {
         Ok(Self(
-            exif::Reader::new()
-                .read_from_container(&mut r)
-                .map_err(NewMetaDataError)?,
+            rexif::parse_buffer(contents).map_err(NewMetaDataError)?,
         ))
     }
 
     pub fn orientation(&self) -> Option<Orientation> {
-        self.0
-            .get_field(exif::Tag::Orientation, exif::In::PRIMARY)
-            .and_then(|orientation| orientation.value.get_uint(0))
+        self.get_tag_value(rexif::ExifTag::Orientation)
+            .and_then(|orientation| orientation.to_i64(0))
             .and_then(|orientation| match orientation {
                 1 => Some(Orientation::Identity),
                 2 => Some(Orientation::FlipHorz),
@@ -65,16 +59,23 @@ impl MetaData {
     }
 
     pub fn original_datetime(&self) -> Option<chrono::NaiveDateTime> {
-        self.0
-            .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
-            .and_then(|date_time_original| match &date_time_original.value {
-                exif::Value::Ascii(ascii_strings) => ascii_strings.get(0),
+        self.get_tag_value(rexif::ExifTag::DateTimeOriginal)
+            .and_then(|date_time_original| match date_time_original {
+                rexif::TagValue::Ascii(ascii_string) => Some(ascii_string),
                 _ => None,
             })
-            .and_then(|ascii_string| std::str::from_utf8(ascii_string).ok())
+            .and_then(|ascii_string| std::str::from_utf8(ascii_string.as_ref()).ok())
             .and_then(|datetime_string| {
                 chrono::NaiveDateTime::parse_from_str(datetime_string, "%Y:%m:%d %H:%M:%S").ok()
             })
+    }
+
+    fn get_tag_value(&self, tag: rexif::ExifTag) -> Option<&rexif::TagValue> {
+        self.0
+            .entries
+            .iter()
+            .find(|entry| entry.tag == tag)
+            .map(|entry| &entry.value)
     }
 }
 
@@ -119,7 +120,13 @@ impl ImageExt {
             use image::ImageFormat;
             match format {
                 ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::Tiff => {
-                    Some(MetaData::new(&mut std::io::Cursor::new(&bytes))?)
+                    match MetaData::new(&bytes) {
+                        Ok(meta_data) => Some(meta_data),
+                        Err(err) => {
+                            log::error!("Failed to read meta-data: {}", err);
+                            None
+                        }
+                    }
                 }
                 _ => None,
             }
