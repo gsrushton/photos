@@ -18,6 +18,11 @@ impl From<&dyn std::error::Error> for ErrorDesc {
     }
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AvatarQueryParams {
+    pub size: Option<u32>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Person {
     pub first_name: String,
