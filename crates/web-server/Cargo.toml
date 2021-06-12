@@ -14,7 +14,7 @@ diesel_migrations = "1.4.0"
 dlib-face-recognition = { path = "../../third-party/dlib-face-recognition" }
 env_logger = "0.8.2"
 futures = "0.3.8"
-image = "0.23.12"
+image = "0.23.14"
 itertools = "0.10.0"
 log = "0.4.11"
 md5 = "0.7.0"
