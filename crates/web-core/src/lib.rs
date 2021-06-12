@@ -154,6 +154,10 @@ where
 }
 
 impl Appearances {
+    pub fn into_inner(self) -> Vec<(i32, Appearance)> {
+        self.0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &(i32, Appearance)> {
         self.0.iter()
     }

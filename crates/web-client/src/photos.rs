@@ -1,5 +1,5 @@
 use crate::CowPath;
-use dominator::{html, Dom};
+use dominator::{clone, html, Dom};
 
 type Params = photos_web_core::PhotoQueryParams;
 type SharedParams = std::rc::Rc<Params>;
@@ -139,44 +139,149 @@ pub fn collection(state: super::SharedState, params: Params) -> Dom {
     )
 }
 
-fn avatar(id: i32) -> Dom {
-    html!("img", {
-        .class("avatar")
-        .attribute("src", &format!("/api/people/{}/avatar", id))
+type MutableAppearances =
+    futures_signals::signal_vec::MutableVec<(i32, photos_web_core::Appearance)>;
+
+fn frame(photo: &photos_web_core::Photo) -> Dom {
+    html!("div", {
+        .class("frame")
+        .children(&mut [
+            html!("div", {
+                .class("mount")
+                .children(&mut [
+                    html!("img", {
+                        .attribute("src", &format!("/static/photos/{}", photo.file_name))
+                    })
+                ])
+            })
+        ])
     })
 }
 
-fn appearance_gallery(state: super::SharedState, id: i32) -> Dom {
-    let render = |appearances: &photos_web_core::Appearances| -> Vec<Dom> {
+#[derive(Clone)]
+enum InfoPanels {
+    AppearanceGallery,
+    AppearanceDetails(i32, photos_web_core::Appearance),
+}
+
+fn info(state: super::SharedState, photo_id: i32) -> Dom {
+    use futures_signals::{signal::SignalExt, signal_vec::SignalVecExt};
+
+    let selected_appearance = std::sync::Arc::new(futures_signals::signal::Mutable::new(None));
+
+    let panels = futures_signals::signal_vec::MutableVec::new_with_values(vec![
+        InfoPanels::AppearanceGallery,
+    ]);
+
+    let panel_signal_vec = panels.signal_vec_cloned();
+
+    html!("div", {
+        .class("info")
+        .future(selected_appearance.signal_cloned().for_each(move |appearance| {
+            if panels.lock_ref().len() > 1 {
+                panels.lock_mut().pop();
+            }
+            if let Some((id, appearance)) = appearance {
+                panels
+                    .lock_mut()
+                    .push_cloned(InfoPanels::AppearanceDetails(id, appearance))
+            }
+            futures::future::ready(())
+        }))
+        .children_signal_vec(
+            panel_signal_vec.map(move |panel| match panel {
+                InfoPanels::AppearanceGallery => {
+                    appearance_gallery(state.clone(), photo_id, selected_appearance.clone())
+                },
+                InfoPanels::AppearanceDetails(id, appearance) => {
+                    appearance_detail(state.clone(), id, appearance)
+                }
+            })
+        )
+    })
+}
+
+fn appearance_detail(
+    state: crate::SharedState,
+    appearance_id: i32,
+    appearance: photos_web_core::Appearance,
+) -> Dom {
+    let render = move |person: &photos_web_core::Person| -> Vec<Dom> {
+        vec![html!("div", {
+            .text(&format!("{}", person.display_name()))
+        })]
+    };
+
+    async fn update(
+        state: crate::SharedState,
+        person_id: i32,
+    ) -> Result<photos_web_core::Person, crate::api::Error> {
+        crate::api::get(state.url(&format!("/api/people/{}", person_id))).await
+    }
+
+    crate::def::vec(
+        dominator::DomBuilder::new_html("div"),
+        move || update(state.clone(), appearance.person),
+        render,
+    )
+}
+
+fn appearance_gallery(
+    state: super::SharedState,
+    photo_id: i32,
+    selected_appearance: std::sync::Arc<
+        futures_signals::signal::Mutable<Option<(i32, photos_web_core::Appearance)>>,
+    >,
+) -> Dom {
+    let render = move |appearances: &std::sync::Arc<MutableAppearances>| {
+        use futures_signals::{signal::SignalExt, signal_vec::SignalVecExt};
+        let selected_appearance = selected_appearance.clone();
         appearances
-            .iter()
-            .map(|(_, appearance)| avatar(appearance.person))
-            .collect()
+            .signal_vec_cloned()
+            .map(move |(id, appearance)| {
+                html!("img", {
+                    .class("avatar")
+                    .class_signal("selected", selected_appearance.signal_cloned().map(
+                        move |appearance| match appearance {
+                            Some((selected_id, _)) => selected_id == id,
+                            None => false
+                        }
+                    ))
+                    .attribute("src", &format!("/api/people/{}/avatar?size=64", appearance.person))
+                    .event({
+                        let selected_appearance = selected_appearance.clone();
+                        move |_: dominator::events::Click| {
+                            selected_appearance.set(Some((id, appearance.clone())))
+                        }
+                    })
+                })
+            })
     };
 
     async fn update(
         state: super::SharedState,
         id: i32,
-    ) -> Result<photos_web_core::Appearances, crate::api::Error> {
-        crate::api::get(state.url(&format!("/api/photos/{}/appearances", id))).await
+    ) -> Result<std::sync::Arc<MutableAppearances>, crate::api::Error> {
+        let appearances: photos_web_core::Appearances =
+            crate::api::get(state.url(&format!("/api/photos/{}/appearances", id))).await?;
+
+        let appearances = std::sync::Arc::new(MutableAppearances::new_with_values(
+            appearances.into_inner(),
+        ));
+
+        Ok(appearances)
     }
 
-    crate::def::vec(
+    crate::def::signal(
         dominator::DomBuilder::new_html("div").class("appearance-gallery"),
-        move || update(state.clone(), id),
+        move || update(state.clone(), photo_id),
         render,
     )
 }
 
 pub fn photo(state: super::SharedState, id: i32) -> Dom {
     fn render(state: super::SharedState, id: i32, photo: &photos_web_core::Photo) -> Vec<Dom> {
-        vec![
-            html!("img", {
-                .class("photo")
-                .attribute("src", &format!("/static/photos/{}", photo.file_name))
-            }),
-            appearance_gallery(state, id),
-        ]
+        vec![frame(photo), info(state, id)]
     }
 
     async fn update(
